@@ -35,7 +35,7 @@ student_id_current = ""
 
 # Queue للمعالجة
 password_queue = Queue()
-num_threads = 50  # تم التصحيح من 500000 إلى 50
+num_threads = 50000  # تم التصحيح من 500000 إلى 50
 
 def get_system_info():
     """الحصول على معلومات الجهاز"""
