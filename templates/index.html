@@ -15,6 +15,46 @@
             <p>نظام البحث الآلي - أكاديمية الحديثة للهندسة والتكنولوجيا</p>
         </div>
 
+        <!-- System Info Card -->
+        <div class="card system-card">
+            <h3>🖥️ معلومات الجهاز والخادم</h3>
+            <div class="system-stats" id="systemStats">
+                <div class="stat-item">
+                    <span class="stat-icon">💻</span>
+                    <span class="stat-name">المعالج:</span>
+                    <span class="stat-value" id="cpuName">جاري التحميل...</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-icon">⚡</span>
+                    <span class="stat-name">استخدام CPU:</span>
+                    <span class="stat-value" id="cpuUsage">-</span>
+                    <div class="mini-bar"><div class="mini-bar-fill" id="cpuBar"></div></div>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-icon">🧠</span>
+                    <span class="stat-name">الذاكرة (RAM):</span>
+                    <span class="stat-value" id="memoryUsage">-</span>
+                    <div class="mini-bar"><div class="mini-bar-fill" id="memoryBar"></div></div>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-icon">💾</span>
+                    <span class="stat-name">المساحة التخزينية:</span>
+                    <span class="stat-value" id="diskUsage">-</span>
+                    <div class="mini-bar"><div class="mini-bar-fill" id="diskBar"></div></div>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-icon">🧵</span>
+                    <span class="stat-name">الـ Threads النشطة:</span>
+                    <span class="stat-value" id="activeThreads">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-icon">🌐</span>
+                    <span class="stat-name">نظام التشغيل:</span>
+                    <span class="stat-value" id="osName">-</span>
+                </div>
+            </div>
+        </div>
+
         <!-- Main Card -->
         <div class="card">
             <!-- Input Section -->
@@ -65,9 +105,15 @@
                         <div class="stat-value" id="remainingCount">-</div>
                         <div class="stat-label">متبقي</div>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card speed-card">
                         <div class="stat-value" id="speedCount">0</div>
-                        <div class="stat-label">طلب/ثانية</div>
+                        <div class="stat-label">متوسط السرعة</div>
+                        <div class="stat-sub">طلب/ثانية</div>
+                    </div>
+                    <div class="stat-card instant-speed-card">
+                        <div class="stat-value" id="instantSpeedCount">0</div>
+                        <div class="stat-label">🚀 السرعة اللحظية</div>
+                        <div class="stat-sub">طلب/ثانية</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-value" id="elapsedTime">0:00</div>
@@ -80,6 +126,10 @@
                     <div class="stat-card">
                         <div class="stat-value" id="successCount">0</div>
                         <div class="stat-label">محاولات ناجحة</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="failedCount">0</div>
+                        <div class="stat-label">محاولات فاشلة</div>
                     </div>
                 </div>
             </div>
