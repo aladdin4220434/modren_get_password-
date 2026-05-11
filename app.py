@@ -4,6 +4,8 @@ import requests
 import time
 import json
 import os
+import psutil
+import platform
 from queue import Queue
 from datetime import datetime
 
@@ -27,28 +29,70 @@ found_location = None
 successful_attempts = 0
 failed_attempts = 0
 search_speed = 0
+instant_speed = 0  # السرعة اللحظية
 start_time = None
 student_id_current = ""
 
 # Queue للمعالجة
 password_queue = Queue()
-num_threads = 500000
+num_threads = 50  # تم التصحيح من 500000 إلى 50
+
+def get_system_info():
+    """الحصول على معلومات الجهاز"""
+    return {
+        'cpu': {
+            'usage': psutil.cpu_percent(interval=0.5),
+            'count': psutil.cpu_count(),
+            'count_logical': psutil.cpu_count(logical=True),
+            'frequency': psutil.cpu_freq().current if psutil.cpu_freq() else 0,
+        },
+        'memory': {
+            'total': psutil.virtual_memory().total,
+            'available': psutil.virtual_memory().available,
+            'used': psutil.virtual_memory().used,
+            'percent': psutil.virtual_memory().percent,
+        },
+        'disk': {
+            'total': psutil.disk_usage('/').total,
+            'used': psutil.disk_usage('/').used,
+            'free': psutil.disk_usage('/').free,
+            'percent': psutil.disk_usage('/').percent,
+        },
+        'network': {
+            'sent': psutil.net_io_counters().bytes_sent,
+            'recv': psutil.net_io_counters().bytes_recv,
+        },
+        'system': {
+            'platform': platform.system(),
+            'platform_release': platform.release(),
+            'processor': platform.processor(),
+            'hostname': platform.node(),
+        },
+        'threads': {
+            'active': threading.active_count(),
+            'num_threads': num_threads
+        }
+    }
 
 def worker(thread_id):
     """دالة المعالجة في الخلفية"""
     global search_active, current_progress, checked_passwords
     global found_password, found_location, successful_attempts, failed_attempts
-    global search_speed
+    global search_speed, instant_speed
     
     session = requests.Session()
     local_checked = 0
     last_time = time.time()
+    speed_counter = 0
+    last_speed_time = time.time()
     
     while search_active and not found_password:
         try:
-            password = password_queue.get(timeout=1)
+            password = password_queue.get(timeout=0.5)
         except:
-            break
+            if password_queue.empty():
+                break
+            continue
         
         if str(password) in checked_passwords:
             password_queue.task_done()
@@ -91,14 +135,21 @@ def worker(thread_id):
             current_progress = len(checked_passwords)
         
         local_checked += 1
+        speed_counter += 1
         password_queue.task_done()
         
-        # حساب السرعة
+        # حساب السرعة المتوسطة
         current_time = time.time()
         if current_time - last_time >= 1:
             search_speed = local_checked / (current_time - last_time)
             local_checked = 0
             last_time = current_time
+        
+        # حساب السرعة اللحظية (كل 0.5 ثانية)
+        if current_time - last_speed_time >= 0.5:
+            instant_speed = speed_counter / (current_time - last_speed_time)
+            speed_counter = 0
+            last_speed_time = current_time
 
 # ========== Routes ==========
 @app.route('/')
@@ -109,11 +160,16 @@ def index():
 def health():
     return "OK", 200
 
+@app.route('/api/system', methods=['GET'])
+def get_system():
+    """API للحصول على معلومات النظام"""
+    return jsonify(get_system_info())
+
 @app.route('/api/start', methods=['POST'])
 def start_search():
     global search_active, checked_passwords, found_password
     global found_location, successful_attempts, failed_attempts
-    global password_queue, start_time, student_id_current
+    global password_queue, start_time, student_id_current, search_speed, instant_speed
     
     data = request.json
     student_id = data.get('student_id')
@@ -133,8 +189,13 @@ def start_search():
     found_location = None
     successful_attempts = 0
     failed_attempts = 0
+    search_speed = 0
+    instant_speed = 0
     student_id_current = student_id
-    total_passwords = int(end_range) - int(start_range) + 1
+    
+    total_passwords_local = int(end_range) - int(start_range) + 1
+    global total_passwords
+    total_passwords = total_passwords_local
     
     # إنشاء queue جديدة
     password_queue = Queue()
@@ -144,12 +205,13 @@ def start_search():
     start_time = time.time()
     
     # بدء الـ threads
-    for i in range(min(num_threads, password_queue.qsize())):
+    threads_count = min(num_threads, password_queue.qsize())
+    for i in range(threads_count):
         thread = threading.Thread(target=worker, args=(i,))
         thread.daemon = True
         thread.start()
     
-    return jsonify({'status': 'started', 'total': password_queue.qsize()})
+    return jsonify({'status': 'started', 'total': password_queue.qsize(), 'threads': threads_count})
 
 @app.route('/api/stop', methods=['POST'])
 def stop_search():
@@ -161,7 +223,7 @@ def stop_search():
 def get_status():
     global search_active, current_progress, total_passwords
     global found_password, found_location, successful_attempts
-    global failed_attempts, search_speed, start_time
+    global failed_attempts, search_speed, start_time, instant_speed
     
     elapsed = time.time() - start_time if start_time else 0
     remaining = total_passwords - current_progress
@@ -177,7 +239,8 @@ def get_status():
         'remaining': remaining,
         'successful': successful_attempts,
         'failed': failed_attempts,
-        'speed': int(search_speed),
+        'speed': round(search_speed, 1),
+        'instant_speed': round(instant_speed, 1),
         'elapsed': int(elapsed),
         'eta': int(remaining / search_speed) if search_speed > 0 and remaining > 0 else 0
     })
@@ -192,4 +255,4 @@ def get_results():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
